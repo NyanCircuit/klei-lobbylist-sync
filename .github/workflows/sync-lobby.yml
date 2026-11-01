@@ -1,0 +1,42 @@
+name: Sync Klei Lobby List
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # 每小时第 0 分钟执行
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: klei-lobby-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Run sync
+        run: python sync_lobby.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+          git add .
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "chore: sync lobby $(date -u +'%Y-%m-%dT%H:%M:%SZ')" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+            git push
+          fi
